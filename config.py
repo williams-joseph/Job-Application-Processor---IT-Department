@@ -41,7 +41,7 @@ CONFIDENCE_HIGH = 0.9
 
 # Excel Settings
 EXCEL_SHEET_NAME = "Applications"
-EXCEL_HEADERS = ['Name', 'Date of Birth', 'Qualification', 'Nationality', 'Sex', 'Status', 'Confidence']
+EXCEL_HEADERS = ['S/N', 'Name', 'Date of Birth', 'Qualification', 'Nationality', 'Sex', 'Status']
 
 
 
