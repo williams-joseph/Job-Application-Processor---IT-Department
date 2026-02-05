@@ -1,0 +1,41 @@
+# ECOWAS Application Processor
+# Logs and temporary files
+*.log
+*.tmp
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config files
+*.json
+
+# Data (optional - remove if you want to track test data)
+test_data/
+sample_files/
+
+# Output
+error_logs/
+exports/
+
+# Virtual Environment
+venv/
+.venv/
