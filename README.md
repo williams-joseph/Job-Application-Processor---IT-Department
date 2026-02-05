@@ -11,7 +11,7 @@ Automated data extraction tool for ECOWAS IT department job applications.
 - **Review Interface**: Manual verification and editing before export
 - **Progress Tracking**: Real-time progress with time estimates
 - **Offline Operation**: Works completely offline - no internet required
-- **Validation**: Confidence scoring and data validation
+- **Validation**: Data validation and error flagging
 
 ## Installation
 
