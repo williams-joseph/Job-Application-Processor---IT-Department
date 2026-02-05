@@ -19,20 +19,8 @@ APPLICATION_FORM_KEYWORDS = ['application', 'form', 'application form']
 
 # Tesseract OCR Path (Update for your system)
 # Windows default
-TESSERACT_PATH_WINDOWS = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-# Linux default
-TESSERACT_PATH_LINUX = "/usr/bin/tesseract"
-# macOS (via Homebrew)
-TESSERACT_PATH_MAC = "/usr/local/bin/tesseract"
-
-# Auto-detect OS and set path
-import platform
-if platform.system() == "Windows":
-    TESSERACT_PATH = TESSERACT_PATH_WINDOWS
-elif platform.system() == "Darwin":
-    TESSERACT_PATH = TESSERACT_PATH_MAC
-else:
-    TESSERACT_PATH = TESSERACT_PATH_LINUX
+# Tesseract OCR Path
+TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # Confidence Thresholds
 CONFIDENCE_LOW = 0.6

@@ -27,8 +27,8 @@ except ImportError:
     Image = None
 
 
-# Configure Tesseract path (Windows default - update if needed)
-TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+from config import TESSERACT_PATH
+
 if pytesseract and os.path.exists(TESSERACT_PATH):
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
