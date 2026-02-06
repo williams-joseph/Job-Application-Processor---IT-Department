@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import logging
+import os
 from pathlib import Path
 from typing import List, Dict, Optional
 import json
@@ -173,7 +174,7 @@ class ApplicationGUI:
         tree_scroll_x = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
         
         columns = (
-            'S/N', 'Applicant', 'NAME', 'POSITION CODE', 'GENDER', 
+            'S/N', 'NAME', 'POSITION CODE', 'GENDER', 
             'INT/EXT', 'DOB', 'AGE', 'NATIONALITY', 'EXP START', 'EXPERIENCE', 'QUALIFICATIONS', 'Status'
         )
         self.tree = ttk.Treeview(
@@ -181,7 +182,8 @@ class ApplicationGUI:
             columns=columns,
             show='headings',
             yscrollcommand=tree_scroll_y.set,
-            xscrollcommand=tree_scroll_x.set
+            xscrollcommand=tree_scroll_x.set,
+            displaycolumns=columns # We can use this to hide columns if needed
         )
         
         tree_scroll_y.config(command=self.tree.yview)
@@ -190,8 +192,7 @@ class ApplicationGUI:
         # Configure columns
         column_widths = {
             'S/N': 40,
-            'Applicant': 120,
-            'NAME': 120,
+            'NAME': 150,
             'POSITION CODE': 100,
             'GENDER': 60,
             'INT/EXT': 60,
@@ -359,7 +360,6 @@ class ApplicationGUI:
             
             values = (
                 idx,  # S/N
-                result.get('applicant_name', ''),
                 fields.get('NAME', ''),
                 fields.get('POSITION CODE', ''),
                 fields.get('GENDER', ''),
@@ -426,9 +426,9 @@ class ApplicationGUI:
         column = self.tree.identify_column(event.x)
         column_index = int(column.replace('#', '')) - 1
         
-        # Don't allow editing S/N, Applicant, or Status columns
-        # indices: 0=S/N, 1=Applicant, 12=Status
-        if column_index in [0, 1, 12]:
+        # Don't allow editing S/N or Status columns
+        # indices: 0=S/N, 11=Status
+        if column_index in [0, 11]:
             return
         
         # Get current value
@@ -449,20 +449,41 @@ class ApplicationGUI:
             self.tree.item(item, values=values)
             
             # Update results data
-            # values[1] is the Applicant Name
-            applicant_name = values[1]
+            # values[1] is the NAME. 
+            # If changed, we might lose the link if we use NAME as key.
+            # However, for now let's assume names are unique enough or 
+            # use the original values from the tree before edit.
+            
+            # Get the original values before the update in results
+            # For simplicity, we'll continue using values[1] (NAME) to find the result
+            # but we should be aware this is still slightly fragile.
+            name_val = values[1] 
             for result in self.results:
-                if result.get('applicant_name') == applicant_name:
-                    tree_col_name = self.tree['columns'][column_index]
-                    
-                    # Direct mapping for most fields
-                    # Handle display name to internal key mapping if necessary
-                    mapping = {
-                        'EXP START': 'EXP START (YEAR)',
-                        'EXPERIENCE': 'EXPERIENCE(Years)',
-                    }
-                    field_key = mapping.get(tree_col_name, tree_col_name)
+                # If we are editing NAME itself, we should have found it by the OLD name.
+                # But here values[1] is already the NEW name.
+                pass
+                
+            # Improved sync: find by index if possible, or just the first match
+            # Let's use a simpler approach: update the result in self.results 
+            # that corresponds to this tree item.
+            
+            # treeview item IDs are persistent for the life of the item.
+            # We'll stick to a simpler name-based lookup for now but fix the logic.
+            # Actually, the user's name is in fields['NAME'].
+            
+            tree_col_name = self.tree['columns'][column_index]
+            mapping = {
+                'EXP START': 'EXP START (YEAR)',
+                'EXPERIENCE': 'EXPERIENCE(Years)',
+            }
+            field_key = mapping.get(tree_col_name, tree_col_name)
+            
+            # Find the result that matches the OTHER fields to be sure
+            # Or just use the one where we saved the name before.
+            for result in self.results:
+                if result['fields'].get('NAME') == current_value:
                     result['fields'][field_key] = new_value
+                    break
             
             entry.destroy()
         

@@ -25,7 +25,7 @@ def build_executable():
     
     # Build command
     cmd = [
-        "pyinstaller",
+        sys.executable, "-m", "PyInstaller",
         "--onefile",              # Single executable
         "--windowed",             # No console window
         "--name", "ECOWAS-Application-Processor",

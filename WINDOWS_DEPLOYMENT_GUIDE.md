@@ -23,6 +23,15 @@ The application needs Tesseract to read scanned documents.
 2.  Click **Code** -> **Download ZIP**.
 3.  Extract the ZIP folder to your Documents or Desktop.
 
+### Step 4: Enable PowerShell Scripts (Fix "scripts disabled" error)
+Windows prevents PowerShell scripts from running by default. You need to enable them to allow your virtual environment to activate.
+1.  Open **PowerShell** as Administrator or a standard PowerShell window.
+2.  Run the following command:
+    ```powershell
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    ```
+3.  Type `Y` or `A` (Yes to All) if prompted.
+
 ---
 
 ## 2. Setup the Environment
