@@ -77,13 +77,18 @@ The project includes a `build.py` script that handles the complex PyInstaller co
 *   `--add-data`: Bundling the logos and guides inside the `.exe`.
 
 To build:
-1.  In the same Command Prompt (with `(venv)` active), run:
+1. In the same Command Prompt (with `(venv)` active), run:
     ```cmd
     python build.py
     ```
-2.  Wait for the build process to finish.
-3.  Navigate to the newly created **`dist/`** folder.
-4.  You will see **`ECOWAS-Application-Processor.exe`**.
+2. Wait for the build process to finish.
+3. Navigate to the newly created **`dist/`** folder.
+4. You will see **`ECOWAS-Application-Processor.exe`**.
+
+### Critical Fix for "PIL" Module Error
+If the `.exe` previously failed with a "No module named 'PIL'" or "No module named 'ImageTk'" error, the new `build.py` includes a fix. Ensure you have the latest `requirements.txt` and run:
+1. `pip install -r requirements.txt` (inside venv)
+2. `python build.py`
 
 *Note: If you want to run the command manually, use:*
 `pyinstaller --onefile --windowed --icon=icon.ico --add-data "logo_square.png;." --add-data "logo.png;." main.py`
@@ -121,6 +126,16 @@ This is often a VS Code configuration issue, even if the package is installed co
     *   Type **"Python: Restart Language Server"** and press Enter.
     *   This forces VS Code to re-scan the environment and should clear the error.
 
+### Issue: "No module named 'PIL'" in the built .exe
+This happens if PyInstaller doesn't bundle the image library properly.
+1.  **Check requirements:** Run `pip install -r requirements.txt` again while your `(venv)` is active.
+2.  **Use the script:** Always use `python build.py` instead of running `pyinstaller` manually, as the script contains necessary flags (`--collect-submodules PIL`) to fix this specific issue.
+
+### Issue: "externally-managed-environment" (Linux dev only)
+If you try to install packages on Linux without a virtual environment, you will see this error.
+*   **Fix:** Use `python3 -m venv .venv` and `source .venv/bin/activate` before installing. (Note: These commands are for Linux; use `setup.bat` on Windows).
+
 ### General Tips for Windows
 *   **Always use the Virtual Environment:** If you see errors about "module not found" when running `python main.py`, ensure your terminal shows `(venv)` at the start of the line. If not, run `venv\Scripts\activate`.
 *   **Permissions:** If building the `.exe` fails due to "Access Denied", try running your terminal or VS Code as an Administrator.
+*   **Path Lengths:** If build fails with long path errors, move your project folder closer to the drive root (e.g., `C:\Projects\ecowas-processor`).

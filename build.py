@@ -41,8 +41,10 @@ def build_executable():
         "--hidden-import", "pdfplumber",
         "--hidden-import", "docx",
         "--hidden-import", "pytesseract",
-        "--hidden-import", "PIL",
+        "--hidden-import", "PIL.Image",
+        "--hidden-import", "PIL.ImageTk",
         "--hidden-import", "ttkthemes",
+        "--collect-submodules", "PIL",
         "main.py"
     ]
     
