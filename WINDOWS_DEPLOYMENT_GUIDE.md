@@ -76,3 +76,31 @@ To give this app to other users at ECOWAS:
 2.  On the user's computer, ensure **Tesseract OCR** is installed (see Step 1.2).
 3.  Paste the `.exe` on their Desktop.
 4.  Double-click to run. No other installation is required!
+
+## 6. Troubleshooting VS Code Issues (Windows)
+
+If you see a red squiggly line under `import PyInstaller` or other packages in VS Code while on Windows, follow these steps:
+
+### Issue: "Import 'PyInstaller' could not be resolved"
+This is often a VS Code configuration issue, even if the package is installed correctly in your virtual environment.
+
+1.  **Select the Correct Interpreter:**
+    *   Click on the Python version in the bottom right corner of VS Code (e.g., `3.12.x (venv)`).
+    *   Select the interpreter that points specifically to the virtual environment: `./venv/Scripts/python.exe`.
+
+2.  **Manually Install via Terminal:**
+    *   Open the VS Code terminal (`Ctrl + ` `).
+    *   Ensure you are in the project root and run:
+        ```cmd
+        .\venv\Scripts\pip install pyinstaller
+        ```
+    *   This ensures the package is installed to the local environment correctly.
+
+3.  **Restart the Language Server:**
+    *   Press `Ctrl + Shift + P`.
+    *   Type **"Python: Restart Language Server"** and press Enter.
+    *   This forces VS Code to re-scan the environment and should clear the error.
+
+### General Tips for Windows
+*   **Always use the Virtual Environment:** If you see errors about "module not found" when running `python main.py`, ensure your terminal shows `(venv)` at the start of the line. If not, run `venv\Scripts\activate`.
+*   **Permissions:** If building the `.exe` fails due to "Access Denied", try running your terminal or VS Code as an Administrator.

@@ -37,15 +37,23 @@ class ApplicationGUI:
     """Main GUI application."""
     
     def __init__(self):
-        # Create main window
         if THEMES_AVAILABLE:
             self.root = ThemedTk(theme="arc")
         else:
             self.root = tk.Tk()
         
         self.root.title("ECOWAS Application Processor")
-        self.root.geometry("1200x800")
-        self.root.minsize(1000, 600)
+        
+        # Calculate position to center the window
+        width = 900
+        height = 650
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        
+        self.root.geometry(f'{width}x{height}+{x}+{y}')
+        self.root.minsize(800, 500)
         
         # Initialize components
         self.processor = ApplicationProcessor(max_workers=4)
@@ -511,72 +519,65 @@ class SplashScreen:
         self.root.overrideredirect(True)
         
         # Calculate position to center the splash screen on the monitor
-        width = 500
-        height = 350
+        width = 600
+        height = 400
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         x = (screen_width // 2) - (width // 2)
         y = (screen_height // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
         
-        self.root.configure(bg='white')
+        self.root.configure(bg='#004d40')  # ECOWAS Green background
         
         # Main Layout Frame
-        frame = tk.Frame(self.root, bg='white')
-        frame.pack(expand=True, fill='both', padx=20, pady=20)
+        frame = tk.Frame(self.root, bg='#004d40')
+        frame.pack(expand=True, fill='both')
         
-        # 1. Load and Display Logo
+        # 1. Load and Display Logo (The Mockup)
         try:
             image_path = Path("logo.png")
             if image_path.exists():
                 pil_image = Image.open(image_path)
-                # Resize logo to fit nicely (200x200 max)
-                pil_image.thumbnail((200, 200)) 
+                # Resize image to fit nicely within the 600x400 window
+                # preserving aspect ratio
+                pil_image.thumbnail((560, 320)) 
                 self.logo_image = ImageTk.PhotoImage(pil_image)
-                logo_label = tk.Label(frame, image=self.logo_image, bg='white')
-                logo_label.pack(pady=(10, 20))
+                logo_label = tk.Label(frame, image=self.logo_image, bg='#004d40')
+                logo_label.pack(expand=True, pady=10)
         except Exception as e:
             logger.error(f"Could not load logo: {e}")
         
-        # 2. Application Title
-        tk.Label(
-            frame, 
-            text="Job Application Processor", 
-            font=("Segoe UI", 20, "bold"), 
-            bg="white", 
-            fg="#004d40"  # ECOWAS Green
-        ).pack()
+        # 2. Progress Bar Background Style
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure(
+            "Splash.Horizontal.TProgressbar", 
+            background="#ffeb3b", 
+            troughcolor="#00695c", 
+            bordercolor="#004d40",
+            thickness=10
+        )
         
-        # 3. Department Subtitle
-        tk.Label(
-            frame, 
-            text="for ECOWAS CCJ IT Department", 
-            font=("Segoe UI", 12), 
-            bg="white", 
-            fg="#666"  # Grey text
-        ).pack(pady=(5, 20))
-        
-        # 4. Loading Text
+        # 3. Loading Text (Subtle at the bottom)
         self.loading_label = tk.Label(
             frame, 
-            text="Loading...", 
-            font=("Segoe UI", 10), 
-            bg="white", 
-            fg="#999"
-        )
-        self.loading_label.pack(side=tk.BOTTOM)
+            text="Initialising Job Application Processor...", 
+            font=("Segoe UI", 9, "italic"), 
+            bg="#004d40", 
+            fg="#b2dfdb"
+        ).pack(side=tk.BOTTOM, pady=(0, 5))
         
-        # 5. Progress Bar
-        self.progress = ttk.Progressbar(frame, mode='indeterminate')
-        self.progress.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
-        self.progress.start(10)
+        # 4. Progress Bar
+        self.progress = ttk.Progressbar(frame, mode='indeterminate', style="Splash.Horizontal.TProgressbar")
+        self.progress.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=(0, 20))
+        self.progress.start(15)
 
 def main():
     """
     Application Entry Point.
     
     Flow:
-    1. Show Splash Screen (3 seconds)
+    1. Show Splash Screen (15 seconds)
     2. Initialize Main GUI
     3. Launch Main Event Loop
     """
@@ -586,14 +587,20 @@ def main():
     
     def launch_main_app():
         """Destroy splash and launch main application."""
+        # Stop the progress bar before destruction to prevent "application has been destroyed" errors
+        try:
+            splash.progress.stop()
+        except Exception:
+            pass
+            
         splash_root.destroy()
         
         # Initialize the main application
         app = ApplicationGUI()
         app.run()
         
-    # Schedule main app launch after 3000ms (3 seconds)
-    splash_root.after(3000, launch_main_app)
+    # Schedule main app launch after 15000ms (15 seconds)
+    splash_root.after(15000, launch_main_app)
     
     # Start the splash screen event loop
     splash_root.mainloop()
