@@ -535,7 +535,7 @@ class SplashScreen:
         
         # 1. Load and Display Logo
         try:
-            image_path = Path("app_logo.png")
+            image_path = Path("ecowas_logo.png")
             if image_path.exists():
                 pil_image = Image.open(image_path)
                 # Resize logo to fit nicely
