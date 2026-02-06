@@ -527,50 +527,74 @@ class SplashScreen:
         y = (screen_height // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
         
-        self.root.configure(bg='#004d40')  # ECOWAS Green background
+        self.root.configure(bg='white')
         
         # Main Layout Frame
-        frame = tk.Frame(self.root, bg='#004d40')
-        frame.pack(expand=True, fill='both')
+        frame = tk.Frame(self.root, bg='white')
+        frame.pack(expand=True, fill='both', padx=20, pady=20)
         
-        # 1. Load and Display Logo (The Mockup)
+        # 1. Load and Display Logo
         try:
-            image_path = Path("logo.png")
+            image_path = Path("app_logo.png")
             if image_path.exists():
                 pil_image = Image.open(image_path)
-                # Resize image to fit nicely within the 600x400 window
-                # preserving aspect ratio
-                pil_image.thumbnail((560, 320)) 
+                # Resize logo to fit nicely
+                pil_image.thumbnail((180, 180)) 
                 self.logo_image = ImageTk.PhotoImage(pil_image)
-                logo_label = tk.Label(frame, image=self.logo_image, bg='#004d40')
-                logo_label.pack(expand=True, pady=10)
+                logo_label = tk.Label(frame, image=self.logo_image, bg='white')
+                logo_label.pack(pady=(20, 10))
+            else:
+                logger.error(f"Logo not found at {image_path}")
         except Exception as e:
             logger.error(f"Could not load logo: {e}")
         
-        # 2. Progress Bar Background Style
+        # 2. Application Title
+        tk.Label(
+            frame, 
+            text="Job Application Processor", 
+            font=("Segoe UI", 36, "bold"), 
+            bg="white", 
+            fg="#006400"  # Dark Green matching mockup
+        ).pack()
+        
+        # 3. Department Subtitle
+        tk.Label(
+            frame, 
+            text="for ECOWAS CCJ IT Department", 
+            font=("Segoe UI", 16), 
+            bg="white", 
+            fg="#555555"  # Grey text
+        ).pack(pady=(5, 30))
+        
+        # 4. Progress Bar Background Style
         style = ttk.Style()
         style.theme_use('default')
         style.configure(
             "Splash.Horizontal.TProgressbar", 
-            background="#ffeb3b", 
-            troughcolor="#00695c", 
-            bordercolor="#004d40",
-            thickness=10
+            background="#00cc44",  # Brighter green for progress
+            troughcolor="#f0f0f0", 
+            bordercolor="white",
+            thickness=8
         )
         
-        # 3. Loading Text (Subtle at the bottom)
+        # 5. Progress Bar
+        self.progress = ttk.Progressbar(
+            frame, 
+            mode='indeterminate', 
+            style="Splash.Horizontal.TProgressbar"
+        )
+        self.progress.pack(fill=tk.X, padx=80, pady=(0, 10))
+        self.progress.start(15)
+        
+        # 6. Loading Text
         self.loading_label = tk.Label(
             frame, 
-            text="Initialising Job Application Processor...", 
-            font=("Segoe UI", 9, "italic"), 
-            bg="#004d40", 
-            fg="#b2dfdb"
-        ).pack(side=tk.BOTTOM, pady=(0, 5))
-        
-        # 4. Progress Bar
-        self.progress = ttk.Progressbar(frame, mode='indeterminate', style="Splash.Horizontal.TProgressbar")
-        self.progress.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=(0, 20))
-        self.progress.start(15)
+            text="Loading...", 
+            font=("Segoe UI", 10), 
+            bg="white", 
+            fg="#888888"
+        )
+        self.loading_label.pack()
 
 def main():
     """
