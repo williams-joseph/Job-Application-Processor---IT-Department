@@ -33,6 +33,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+import sys
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 class ApplicationGUI:
     """Main GUI application."""
     
@@ -42,8 +55,18 @@ class ApplicationGUI:
         else:
             self.root = tk.Tk()
         
-        self.root.title("ECOWAS Application Processor")
+        import config
+        self.root.title(config.APP_NAME)
         
+        # Set window icon
+        try:
+            icon_path = Path(resource_path("logo_square.png"))
+            if icon_path.exists():
+                self.icon_photo = tk.PhotoImage(file=str(icon_path))
+                self.root.iconphoto(True, self.icon_photo)
+        except Exception as e:
+            logger.error(f"Could not load icon: {e}")
+
         # Calculate position to center the window
         width = 900
         height = 650
@@ -149,7 +172,10 @@ class ApplicationGUI:
         tree_scroll_y = ttk.Scrollbar(table_frame, orient=tk.VERTICAL)
         tree_scroll_x = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
         
-        columns = ('S/N', 'Applicant', 'Name', 'DOB', 'Qualification', 'Nationality', 'Sex', 'Status')
+        columns = (
+            'S/N', 'Applicant', 'NAME', 'POSITION CODE', 'GENDER', 
+            'INT/EXT', 'DOB', 'AGE', 'NATIONALITY', 'EXP START', 'EXPERIENCE', 'QUALIFICATIONS', 'Status'
+        )
         self.tree = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -163,19 +189,24 @@ class ApplicationGUI:
         
         # Configure columns
         column_widths = {
-            'S/N': 60,
-            'Applicant': 150,
-            'Name': 150,
-            'DOB': 100,
-            'Qualification': 200,
-            'Nationality': 100,
-            'Sex': 60,
+            'S/N': 40,
+            'Applicant': 120,
+            'NAME': 120,
+            'POSITION CODE': 100,
+            'GENDER': 60,
+            'INT/EXT': 60,
+            'DOB': 80,
+            'AGE': 50,
+            'NATIONALITY': 100,
+            'EXP START': 80,
+            'EXPERIENCE': 80,
+            'QUALIFICATIONS': 200,
             'Status': 100,
         }
         
         for col in columns:
             self.tree.heading(col, text=col, command=lambda c=col: self._sort_by_column(c))
-            self.tree.column(col, width=column_widths[col], minwidth=50)
+            self.tree.column(col, width=column_widths.get(col, 100), minwidth=50)
         
         # Grid layout
         self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -329,11 +360,16 @@ class ApplicationGUI:
             values = (
                 idx,  # S/N
                 result.get('applicant_name', ''),
-                fields.get('Name', ''),
-                fields.get('Date of Birth', ''),
-                fields.get('Qualification', ''),
-                fields.get('Nationality', ''),
-                fields.get('Sex', ''),
+                fields.get('NAME', ''),
+                fields.get('POSITION CODE', ''),
+                fields.get('GENDER', ''),
+                fields.get('INT/EXT', ''),
+                fields.get('DOB', ''),
+                fields.get('AGE', ''),
+                fields.get('NATIONALITY', ''),
+                fields.get('EXP START (YEAR)', ''),
+                fields.get('EXPERIENCE(Years)', ''),
+                fields.get('QUALIFICATIONS', ''),
                 status,
             )
             
@@ -379,17 +415,7 @@ class ApplicationGUI:
         # Rearrange items
         for index, (val, item) in enumerate(items):
             self.tree.move(item, '', index)
-    
-    def _edit_cell(self, event):
-        """Edit cell on double-click."""
-        # Get selected item and column
-        item = self.tree.selection()[0] if self.tree.selection() else None
-        if not item:
-            return
-        
-        column = self.tree.identify_column(event.x)
-        column_index = int(column.replace('#', '')) - 1
-        
+
     def _edit_cell(self, event):
         """Edit cell on double-click."""
         # Get selected item and column
@@ -401,8 +427,8 @@ class ApplicationGUI:
         column_index = int(column.replace('#', '')) - 1
         
         # Don't allow editing S/N, Applicant, or Status columns
-        # indices: 0=S/N, 1=Applicant, 7=Status
-        if column_index in [0, 1, 7]:
+        # indices: 0=S/N, 1=Applicant, 12=Status
+        if column_index in [0, 1, 12]:
             return
         
         # Get current value
@@ -427,17 +453,16 @@ class ApplicationGUI:
             applicant_name = values[1]
             for result in self.results:
                 if result.get('applicant_name') == applicant_name:
-                    field_name = self.tree['columns'][column_index]
-                    if field_name in ['Name', 'Date of Birth', 'Qualification', 'Nationality', 'Sex']:
-                        result['fields'][field_name] = new_value
-                        # Update specific field keys if they match the column name text
-                        # The column names in tree are: S/N, Applicant, Name, DOB, Qualification, Nationality, Sex, Status
-                        # The keys in result['fields'] are: Name, Date of Birth, Qualification, Nationality, Sex
-                        
-                        # Mapping column name to field key if they differ
-                        key_map = {'DOB': 'Date of Birth'}
-                        actual_key = key_map.get(field_name, field_name)
-                        result['fields'][actual_key] = new_value
+                    tree_col_name = self.tree['columns'][column_index]
+                    
+                    # Direct mapping for most fields
+                    # Handle display name to internal key mapping if necessary
+                    mapping = {
+                        'EXP START': 'EXP START (YEAR)',
+                        'EXPERIENCE': 'EXPERIENCE(Years)',
+                    }
+                    field_key = mapping.get(tree_col_name, tree_col_name)
+                    result['fields'][field_key] = new_value
             
             entry.destroy()
         
@@ -503,131 +528,12 @@ class ApplicationGUI:
         self.root.mainloop()
 
 
-class SplashScreen:
-    """
-    Splash screen window displayed during application startup.
-    
-    Displays:
-    - ECOWAS CCJ Logo
-    - Application Name
-    - Department Name
-    - Indeterminate progress bar
-    """
-    def __init__(self, root):
-        self.root = root
-        # Remove standard window title bar and borders for a cleaner look
-        self.root.overrideredirect(True)
-        
-        # Calculate position to center the splash screen on the monitor
-        width = 600
-        height = 400
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        x = (screen_width // 2) - (width // 2)
-        y = (screen_height // 2) - (height // 2)
-        self.root.geometry(f'{width}x{height}+{x}+{y}')
-        
-        self.root.configure(bg='white')
-        
-        # Main Layout Frame
-        frame = tk.Frame(self.root, bg='white')
-        frame.pack(expand=True, fill='both', padx=20, pady=20)
-        
-        # 1. Load and Display Logo
-        try:
-            image_path = Path("logo.png")
-            if image_path.exists():
-                pil_image = Image.open(image_path)
-                # Resize logo to fit nicely
-                pil_image.thumbnail((180, 180)) 
-                self.logo_image = ImageTk.PhotoImage(pil_image)
-                logo_label = tk.Label(frame, image=self.logo_image, bg='white')
-                logo_label.pack(pady=(20, 10))
-            else:
-                logger.error(f"Logo not found at {image_path}")
-        except Exception as e:
-            logger.error(f"Could not load logo: {e}")
-        
-        # 2. Application Title
-        tk.Label(
-            frame, 
-            text="Job Application Processor", 
-            font=("Segoe UI", 36, "bold"), 
-            bg="white", 
-            fg="#006400"  # Dark Green matching mockup
-        ).pack()
-        
-        # 3. Department Subtitle
-        tk.Label(
-            frame, 
-            text="for ECOWAS CCJ IT Department", 
-            font=("Segoe UI", 16), 
-            bg="white", 
-            fg="#555555"  # Grey text
-        ).pack(pady=(5, 30))
-        
-        # 4. Progress Bar Background Style
-        style = ttk.Style()
-        style.theme_use('default')
-        style.configure(
-            "Splash.Horizontal.TProgressbar", 
-            background="#00cc44",  # Brighter green for progress
-            troughcolor="#f0f0f0", 
-            bordercolor="white",
-            thickness=8
-        )
-        
-        # 5. Progress Bar
-        self.progress = ttk.Progressbar(
-            frame, 
-            mode='indeterminate', 
-            style="Splash.Horizontal.TProgressbar"
-        )
-        self.progress.pack(fill=tk.X, padx=80, pady=(0, 10))
-        self.progress.start(15)
-        
-        # 6. Loading Text
-        self.loading_label = tk.Label(
-            frame, 
-            text="Loading...", 
-            font=("Segoe UI", 10), 
-            bg="white", 
-            fg="#888888"
-        )
-        self.loading_label.pack()
-
 def main():
     """
     Application Entry Point.
-    
-    Flow:
-    1. Show Splash Screen (15 seconds)
-    2. Initialize Main GUI
-    3. Launch Main Event Loop
     """
-    # Create the root window for the splash screen
-    splash_root = tk.Tk()
-    splash = SplashScreen(splash_root)
-    
-    def launch_main_app():
-        """Destroy splash and launch main application."""
-        # Stop the progress bar before destruction to prevent "application has been destroyed" errors
-        try:
-            splash.progress.stop()
-        except Exception:
-            pass
-            
-        splash_root.destroy()
-        
-        # Initialize the main application
-        app = ApplicationGUI()
-        app.run()
-        
-    # Schedule main app launch after 15000ms (15 seconds)
-    splash_root.after(15000, launch_main_app)
-    
-    # Start the splash screen event loop
-    splash_root.mainloop()
+    app = ApplicationGUI()
+    app.run()
 
 
 if __name__ == '__main__':

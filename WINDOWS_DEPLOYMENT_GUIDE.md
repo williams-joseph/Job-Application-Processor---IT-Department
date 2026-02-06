@@ -52,21 +52,32 @@ To run the app as a developer (before building the .exe):
     ```cmd
     python main.py
     ```
-4.  The **Splash Screen** should appear, followed by the main window. Test it with some sample files.
+4.  The application window will open directly.
+5.  **New Features:** 
+    *   **Position Code:** You can now type the specific position code (like `ACCTRE_25EXT`) directly in the app before processing.
+    *   **Int/Ext Status:** You can also set the default status for the batch.
 
 ---
 
 ## 4. Build the Final Executable (.exe)
 
-When testing is successful and you want to create the file for distribution:
+The project includes a `build.py` script that handles the complex PyInstaller command for you. It uses the flags you recommended:
+*   `--onefile`: Creating a single executable file.
+*   `--windowed`: Preventing a console window from opening.
+*   `--icon`: Attaching your custom `icon.ico`.
+*   `--add-data`: Bundling the logos and guides inside the `.exe`.
 
+To build:
 1.  In the same Command Prompt (with `(venv)` active), run:
     ```cmd
     python build.py
     ```
-2.  Wait for the build process to finish. It takes about 1-2 minutes.
+2.  Wait for the build process to finish.
 3.  Navigate to the newly created **`dist/`** folder.
 4.  You will see **`ECOWAS-Application-Processor.exe`**.
+
+*Note: If you want to run the command manually, use:*
+`pyinstaller --onefile --windowed --icon=icon.ico --add-data "logo_square.png;." --add-data "logo.png;." main.py`
 
 ## 5. Deployment / Distribution
 

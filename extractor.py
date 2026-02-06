@@ -47,22 +47,25 @@ class FieldExtractor:
             r'(?:Date\s+of\s+Birth|DOB|Birth\s+Date)\s*:?\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})',
             r'(?:Date\s+of\s+Birth|DOB|Birth\s+Date)\s*:?\s*(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})',
         ],
-        'qualification': [
-            r'(?:Highest\s+)?Qualification\s*:?\s*([A-Z][a-zA-Z\s\.,\(\)]+?)(?:\n|Date|Year)',
-            r'Educational\s+Qualification\s*:?\s*([A-Z][a-zA-Z\s\.,\(\)]+?)(?:\n|Date|Year)',
-            r'(?:BSc|MSc|PhD|BA|MA|HND|OND|SSCE)\s*(?:in\s+)?([A-Za-z\s]+)',
-        ],
         'nationality': [
             r'Nationality\s*:?\s*([A-Z][a-zA-Z\s]+?)(?:\n|Sex|Gender|Date)',
             r'Country\s+of\s+Citizenship\s*:?\s*([A-Z][a-zA-Z\s]+)',
         ],
-        'sex': [
+        'gender': [
             r'(?:Sex|Gender)\s*:?\s*(Male|Female|M|F)\b',
         ],
+        'exp_start': [
+            r'(?:Experience\s+Start|Work\s+Start|Started\s+Work)\s*:?\s*(\d{4})',
+            r'(?:Earliest|First)\s+Employment\s*:?\s*(\d{4})',
+            r'(?:Experience|Employment)\s+History\s+since\s*:?\s*(\d{4})',
+        ]
     }
     
     def __init__(self):
         self.confidence_threshold = 0.5
+        from config import DEFAULT_POSITION_CODE, DEFAULT_INT_EXT
+        self.default_position_code = DEFAULT_POSITION_CODE
+        self.default_int_ext = DEFAULT_INT_EXT
     
     def extract_from_file(self, file_path: str) -> Dict:
         """
@@ -188,27 +191,30 @@ class FieldExtractor:
         Returns:
             Dictionary with fields and confidence scores
         """
+        current_year = datetime.now().year
+        
         fields = {
-            'Name': '',
-            'Date of Birth': '',
-            'Qualification': '',
-            'Nationality': '',
-            'Sex': '',
+            'NAME': '',
+            'POSITION CODE': self.default_position_code,
+            'GENDER': '',
+            'INT/EXT': self.default_int_ext,
+            'DOB': '',
+            'AGE': '',
+            'NATIONALITY': '',
+            'EXP START (YEAR)': '',
+            'EXPERIENCE(Years)': '',
+            'QUALIFICATIONS': '',
         }
         
-        confidence = {
-            'Name': 0.0,
-            'Date of Birth': 0.0,
-            'Qualification': 0.0,
-            'Nationality': 0.0,
-            'Sex': 0.0,
-        }
+        confidence = {k: 0.0 for k in fields.keys()}
+        confidence['POSITION CODE'] = 1.0
+        confidence['INT/EXT'] = 1.0
         
         # Extract Name
         name_match = self._find_best_match(text, self.PATTERNS['name'])
         if name_match:
-            fields['Name'] = name_match[0].strip()
-            confidence['Name'] = 0.9 if len(fields['Name'].split()) >= 2 else 0.6
+            fields['NAME'] = name_match[0].strip()
+            confidence['NAME'] = 0.9 if len(fields['NAME'].split()) >= 2 else 0.6
         
         # Extract Date of Birth
         dob_match = self._find_best_match(text, self.PATTERNS['dob'])
@@ -216,41 +222,122 @@ class FieldExtractor:
             dob_text = dob_match[0].strip()
             normalized_dob = self._normalize_date(dob_text)
             if normalized_dob:
-                fields['Date of Birth'] = normalized_dob
-                confidence['Date of Birth'] = 0.9
+                fields['DOB'] = normalized_dob
+                confidence['DOB'] = 0.9
+                
+                # Calculate AGE
+                try:
+                    birth_date = datetime.strptime(normalized_dob, '%Y-%m-%d')
+                    fields['AGE'] = current_year - birth_date.year
+                    confidence['AGE'] = 0.9
+                except Exception:
+                    pass
             else:
-                fields['Date of Birth'] = dob_text
-                confidence['Date of Birth'] = 0.5
+                fields['DOB'] = dob_text
+                confidence['DOB'] = 0.5
         
-        # Extract Qualification
-        qual_match = self._find_best_match(text, self.PATTERNS['qualification'])
-        if qual_match:
-            fields['Qualification'] = qual_match[0].strip()
-            confidence['Qualification'] = 0.8
+        # Extract Experience Start Year
+        exp_match = self._find_best_match(text, self.PATTERNS['exp_start'])
+        if exp_match:
+            try:
+                start_year = int(exp_match[0])
+                fields['EXP START (YEAR)'] = start_year
+                fields['EXPERIENCE(Years)'] = current_year - start_year
+                confidence['EXP START (YEAR)'] = 0.8
+                confidence['EXPERIENCE(Years)'] = 0.8
+            except ValueError:
+                pass
+        else:
+            # Try to find years in text that seem like work start years
+            years = re.findall(r'\b(19|20)\d{2}\b', text)
+            if years:
+                # Often work history is listed after education. 
+                # Education years are often earlier. Work start might be the oldest year after graduation.
+                # Simplification: let's pick the one explicitly labeled or just leave blank if uncertain.
+                pass
+
+        # Extract Qualifications (Special Multiline Format)
+        quals = self._extract_multiline_qualifications(text)
+        if quals:
+            fields['QUALIFICATIONS'] = quals
+            confidence['QUALIFICATIONS'] = 0.8
         
         # Extract Nationality
         nat_match = self._find_best_match(text, self.PATTERNS['nationality'])
         if nat_match:
-            fields['Nationality'] = nat_match[0].strip()
-            confidence['Nationality'] = 0.9
+            fields['NATIONALITY'] = nat_match[0].strip()
+            confidence['NATIONALITY'] = 0.9
         
-        # Extract Sex
-        sex_match = self._find_best_match(text, self.PATTERNS['sex'])
-        if sex_match:
-            sex_value = sex_match[0].strip().upper()
-            # Normalize to Male/Female
-            if sex_value in ['M', 'MALE']:
-                fields['Sex'] = 'Male'
-            elif sex_value in ['F', 'FEMALE']:
-                fields['Sex'] = 'Female'
+        # Extract Gender
+        gender_match = self._find_best_match(text, self.PATTERNS['gender'])
+        if gender_match:
+            gender_value = gender_match[0].strip().upper()
+            if gender_value in ['M', 'MALE']:
+                fields['GENDER'] = 'M'
+            elif gender_value in ['F', 'FEMALE']:
+                fields['GENDER'] = 'F'
             else:
-                fields['Sex'] = sex_value
-            confidence['Sex'] = 0.95
+                fields['GENDER'] = gender_value
+            confidence['GENDER'] = 0.95
         
         return {
             'fields': fields,
             'confidence': confidence,
         }
+
+    def _extract_multiline_qualifications(self, text: str) -> str:
+        """
+        Extract qualifications and format them as:
+        Masters Degree MBA - 2023
+        B.sc Business Administration - 2017
+        ...
+        """
+        qual_list = []
+        
+        # Keywords for degrees and diplomas
+        degree_keywords = [
+            'PhD', 'Doctorate', 'Master', 'Masters', 'MBA', 'MSc', 'MA', 
+            'Bachelor', 'B.sc', 'BSc', 'B.A', 'BA', 'Degree',
+            'Diploma', 'HND', 'OND', 'SSCE', 'WAEC', 'WEAC', 
+            'School Certificate', 'Certificate'
+        ]
+        
+        # Pattern to find a degree and a year near it
+        # Example: "B.sc Business Administration (2017)" or "MSc MBA - 2023"
+        # We'll look for lines or segments containing keywords and a 4-digit year
+        
+        lines = text.split('\n')
+        for line in lines:
+            line = line.strip()
+            found_year = re.search(r'\b(19|20)\d{2}\b', line)
+            if found_year:
+                year = found_year.group(0)
+                # Check if this line contains a degree keyword
+                for keyword in degree_keywords:
+                    if re.search(rf'\b{re.escape(keyword)}\b', line, re.IGNORECASE):
+                        # Clean up the line to just the qualification part
+                        clean_line = line.replace(year, '').strip()
+                        # Remove common separators and brackets
+                        clean_line = re.sub(r'[\(\)\-\:\,]', ' ', clean_line).strip()
+                        # Re-format properly
+                        qual_list.append(f"{clean_line} - {year}")
+                        break
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_quals = []
+        for q in qual_list:
+            if q not in seen:
+                unique_quals.append(q)
+                seen.add(q)
+        
+        # Sort by year descending
+        try:
+            unique_quals.sort(key=lambda x: int(re.search(r'(\d{4})$', x).group(1)), reverse=True)
+        except Exception:
+            pass
+            
+        return '\n'.join(unique_quals)
     
     def _find_best_match(self, text: str, patterns: list) -> Optional[Tuple]:
         """Try multiple patterns and return the best match."""
@@ -288,23 +375,23 @@ class FieldExtractor:
         validation = {}
         
         # Name validation
-        validation['Name'] = bool(fields.get('Name')) and len(fields['Name'].split()) >= 2
+        validation['NAME'] = bool(fields.get('NAME')) and len(str(fields['NAME']).split()) >= 2
         
         # DOB validation
-        dob = fields.get('Date of Birth', '')
-        validation['Date of Birth'] = bool(dob) and (
-            re.match(r'\d{4}-\d{2}-\d{2}', dob) or
-            re.match(r'\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}', dob)
+        dob = fields.get('DOB', '')
+        validation['DOB'] = bool(dob) and (
+            re.match(r'\d{4}-\d{2}-\d{2}', str(dob)) or
+            re.match(r'\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4}', str(dob))
         )
         
         # Qualification validation
-        validation['Qualification'] = bool(fields.get('Qualification'))
+        validation['QUALIFICATIONS'] = bool(fields.get('QUALIFICATIONS'))
         
         # Nationality validation
-        validation['Nationality'] = bool(fields.get('Nationality'))
+        validation['NATIONALITY'] = bool(fields.get('NATIONALITY'))
         
-        # Sex validation
-        sex = fields.get('Sex', '')
-        validation['Sex'] = sex in ['Male', 'Female', 'M', 'F']
+        # Gender validation
+        gender = fields.get('GENDER', '')
+        validation['GENDER'] = str(gender) in ['Male', 'Female', 'M', 'F']
         
         return validation

@@ -35,6 +35,8 @@ def build_executable():
         "--add-data", f"OFFLINE_EXPORT_GUIDE.md{os.pathsep}.",
         "--add-data", f"QUICK_START.md{os.pathsep}.", 
         "--add-data", f"logo.png{os.pathsep}.",
+        "--add-data", f"logo_square.png{os.pathsep}.",
+        "--add-data", f"icon.ico{os.pathsep}.",
         "--hidden-import", "openpyxl",
         "--hidden-import", "pdfplumber",
         "--hidden-import", "docx",

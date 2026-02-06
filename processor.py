@@ -202,11 +202,16 @@ class ApplicationProcessor:
             result['extraction_status'] = 'no_form'
             result['error_message'] = 'Application form not found in folder'
             result['fields'] = {
-                'Name': applicant['applicant_name'],  # Use folder name
-                'Date of Birth': '',
-                'Qualification': '',
-                'Nationality': '',
-                'Sex': '',
+                'NAME': applicant['applicant_name'],  # Use folder name
+                'POSITION CODE': self.extractor.default_position_code,
+                'GENDER': '',
+                'INT/EXT': self.extractor.default_int_ext,
+                'DOB': '',
+                'AGE': '',
+                'NATIONALITY': '',
+                'EXP START (YEAR)': '',
+                'EXPERIENCE(Years)': '',
+                'QUALIFICATIONS': '',
             }
             return result
         
@@ -220,8 +225,8 @@ class ApplicationProcessor:
             result['file_name'] = extraction['file_name']
             
             # If name is empty but we have folder name, use it
-            if not result['fields'].get('Name'):
-                result['fields']['Name'] = applicant['applicant_name']
+            if not result['fields'].get('NAME'):
+                result['fields']['NAME'] = applicant['applicant_name']
             
         except Exception as e:
             logger.error(f"Error extracting from {applicant['application_form']}: {e}")
@@ -229,11 +234,16 @@ class ApplicationProcessor:
             result['error_message'] = str(e)
             # Even on error, include the folder name
             result['fields'] = {
-                'Name': applicant['applicant_name'],
-                'Date of Birth': '',
-                'Qualification': '',
-                'Nationality': '',
-                'Sex': '',
+                'NAME': applicant['applicant_name'],
+                'POSITION CODE': self.extractor.default_position_code,
+                'GENDER': '',
+                'INT/EXT': self.extractor.default_int_ext,
+                'DOB': '',
+                'AGE': '',
+                'NATIONALITY': '',
+                'EXP START (YEAR)': '',
+                'EXPERIENCE(Years)': '',
+                'QUALIFICATIONS': '',
             }
         
         return result

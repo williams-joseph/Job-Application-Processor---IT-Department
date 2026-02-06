@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 # Application Settings
-APP_NAME = "ECOWAS Application Processor"
+APP_NAME = "ECOWAS Job Application Processor"
 APP_VERSION = "1.0.0"
 
 # Processing Settings
@@ -28,8 +28,15 @@ CONFIDENCE_MEDIUM = 0.8
 CONFIDENCE_HIGH = 0.9
 
 # Excel Settings
-EXCEL_SHEET_NAME = "Applications"
-EXCEL_HEADERS = ['S/N', 'Name', 'Date of Birth', 'Qualification', 'Nationality', 'Sex', 'Status']
+EXCEL_SHEET_NAME = "Sheet1"
+EXCEL_HEADERS = [
+    'S/N', 'NAME', 'POSITION CODE', 'GENDER', 'INT/EXT', 'DOB', 
+    'AGE', 'NATIONALITY', 'EXP START (YEAR)', 'EXPERIENCE(Years)', 'QUALIFICATIONS'
+]
+
+# Default values for constant fields
+DEFAULT_POSITION_CODE = "ACCTRE_25EXT"
+DEFAULT_INT_EXT = "EXT"
 
 
 
@@ -40,30 +47,35 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
 # Field Extraction Settings
 FIELD_DEFINITIONS = {
-    'Name': {
+    'NAME': {
         'required': True,
-        'validation': lambda x: len(x.split()) >= 2,
+        'validation': lambda x: len(str(x).split()) >= 2,
         'error_message': 'Name should contain at least first and last name',
     },
-    'Date of Birth': {
+    'GENDER': {
+        'required': True,
+        'validation': lambda x: str(x).upper() in ['MALE', 'FEMALE', 'M', 'F'],
+        'error_message': 'Gender must be Male, Female, M, or F',
+    },
+    'DOB': {
         'required': True,
         'validation': lambda x: bool(x),
         'error_message': 'Date of Birth is required',
     },
-    'Qualification': {
-        'required': True,
-        'validation': lambda x: bool(x),
-        'error_message': 'Qualification is required',
-    },
-    'Nationality': {
+    'NATIONALITY': {
         'required': True,
         'validation': lambda x: bool(x),
         'error_message': 'Nationality is required',
     },
-    'Sex': {
+    'EXP START (YEAR)': {
+        'required': False,
+        'validation': lambda x: True,
+        'error_message': '',
+    },
+    'QUALIFICATIONS': {
         'required': True,
-        'validation': lambda x: x in ['Male', 'Female', 'M', 'F'],
-        'error_message': 'Sex must be Male, Female, M, or F',
+        'validation': lambda x: bool(x),
+        'error_message': 'Qualification is required',
     },
 }
 

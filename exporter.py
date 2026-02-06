@@ -20,70 +20,113 @@ logger = logging.getLogger(__name__)
 class ExcelExporter:
     """Handles Excel file operations."""
     
-    HEADER_ROW = ['S/N', 'Name', 'Date of Birth', 'Qualification', 'Nationality', 'Sex']
+    HEADER_ROW = [
+        'S/N', 'NAME', 'POSITION CODE', 'GENDER', 'INT/EXT', 'DOB', 
+        'AGE', 'NATIONALITY', 'EXP START (YEAR)', 'EXPERIENCE(Years)', 'QUALIFICATIONS'
+    ]
     
     def __init__(self):
         if not load_workbook:
             raise ImportError("openpyxl not installed")
+        from config import EXCEL_SHEET_NAME
+        self.sheet_name = EXCEL_SHEET_NAME
     
     def append_to_excel(self, excel_path: str, data_rows: List[Dict]) -> Dict:
         """
-        Append extracted data to existing Excel file.
-        
-        Args:
-            excel_path: Path to Excel file
-            data_rows: List of dictionaries with extracted data
-            
-        Returns:
-            Dictionary with export statistics
+        Update existing rows or append new ones in the Excel file.
+        Inherits Position Code and Int/Ext from the existing data in the sheet.
         """
         excel_path = Path(excel_path)
         
         # Load or create workbook
         if excel_path.exists():
             wb = load_workbook(excel_path)
-            ws = wb.active
+            if self.sheet_name in wb.sheetnames:
+                ws = wb[self.sheet_name]
+            else:
+                ws = wb.active
             logger.info(f"Loaded existing Excel file: {excel_path}")
         else:
             wb = Workbook()
             ws = wb.active
-            ws.title = "Applications"
-            # Add header row
+            ws.title = self.sheet_name
             self._write_header(ws)
             logger.info(f"Created new Excel file: {excel_path}")
         
-        # Find last row
-        start_row = ws.max_row + 1
+        # Capture "Master" Position Code and Int/Ext from the first data row (Row 2)
+        # This allows us to maintain consistency for this specific position/sheet
+        master_pos_code = None
+        master_int_ext = None
         
-        # Ensure header exists
-        if ws.max_row == 1 and not ws['A1'].value:
-            self._write_header(ws)
-            start_row = 2
+        if ws.max_row >= 2:
+            # Column C (3) is POSITION CODE, Column E (5) is INT/EXT
+            master_pos_code = ws.cell(row=2, column=3).value
+            master_int_ext = ws.cell(row=2, column=5).value
+            logger.info(f"Inheriting Position Code: '{master_pos_code}' and Status: '{master_int_ext}' from sheet.")
+
+        # Create a mapping of Names to Row Numbers for fast lookup
+        name_map = {}
+        for row_idx in range(2, ws.max_row + 1):
+            name_val = ws.cell(row=row_idx, column=2).value # NAME is Column B
+            if name_val:
+                name_map[str(name_val).strip().lower()] = row_idx
         
-        # Append data rows
-        rows_added = 0
-        for idx, data in enumerate(data_rows):
-            row_num = start_row + idx
-            
+        rows_updated = 0
+        rows_appended = 0
+        
+        for data in data_rows:
             fields = data.get('fields', {})
+            applicant_name = str(data.get('applicant_name', fields.get('NAME', ''))).strip().lower()
             
-            # S/N is the row number (excluding header)
-            ws[f'A{row_num}'] = row_num - 1
-            ws[f'B{row_num}'] = fields.get('Name', '')
-            ws[f'C{row_num}'] = fields.get('Date of Birth', '')
-            ws[f'D{row_num}'] = fields.get('Qualification', '')
-            ws[f'E{row_num}'] = fields.get('Nationality', '')
-            ws[f'F{row_num}'] = fields.get('Sex', '')
+            if applicant_name in name_map:
+                row_num = name_map[applicant_name]
+                rows_updated += 1
+            else:
+                row_num = ws.max_row + 1
+                ws.cell(row=row_num, column=1).value = row_num - 1 # S/N
+                # Set Name if appending
+                ws.cell(row=row_num, column=2).value = fields.get('NAME', '').upper()
+                rows_appended += 1
             
-            rows_added += 1
+            # 1. POSITION CODE (C) - Always use master value if found in sheet
+            if master_pos_code:
+                ws.cell(row=row_num, column=3).value = master_pos_code
+            elif fields.get('POSITION CODE'):
+                ws.cell(row=row_num, column=3).value = fields.get('POSITION CODE')
+                
+            # 2. GENDER (D)
+            ws.cell(row=row_num, column=4).value = fields.get('GENDER', '')
+            
+            # 3. INT/EXT (E) - Always use master value if found in sheet
+            if master_int_ext:
+                ws.cell(row=row_num, column=5).value = master_int_ext
+            elif fields.get('INT/EXT'):
+                ws.cell(row=row_num, column=5).value = fields.get('INT/EXT')
+
+            # 4. DOB (F)
+            ws.cell(row=row_num, column=6).value = fields.get('DOB', '')
+            # 5. AGE (G)
+            ws.cell(row=row_num, column=7).value = fields.get('AGE', '')
+            # 6. NATIONALITY (H)
+            ws.cell(row=row_num, column=8).value = fields.get('NATIONALITY', '')
+            # 7. EXP START (I)
+            ws.cell(row=row_num, column=9).value = fields.get('EXP START (YEAR)', '')
+            # 8. EXPERIENCE (J)
+            ws.cell(row=row_num, column=10).value = fields.get('EXPERIENCE(Years)', '')
+            
+            # 9. QUALIFICATIONS (K)
+            qual_cell = ws.cell(row=row_num, column=11)
+            qual_cell.value = fields.get('QUALIFICATIONS', '')
+            qual_cell.alignment = Alignment(wrap_text=True, vertical="top")
         
         # Save workbook
         wb.save(excel_path)
-        logger.info(f"Added {rows_added} rows to Excel file")
+        logger.info(f"Sync complete. Updated {rows_updated} rows and appended {rows_appended} rows")
         
         return {
-            'rows_added': rows_added,
-            'total_rows': ws.max_row - 1,  # Exclude header
+            'rows_added': rows_updated + rows_appended,
+            'rows_updated': rows_updated,
+            'rows_appended': rows_appended,
             'file_path': str(excel_path),
         }
     
@@ -97,18 +140,27 @@ class ExcelExporter:
             cell.alignment = Alignment(horizontal="center", vertical="center")
         
         # Set column widths
-        worksheet.column_dimensions['A'].width = 8   # S/N
-        worksheet.column_dimensions['B'].width = 25  # Name
-        worksheet.column_dimensions['C'].width = 15  # DOB
-        worksheet.column_dimensions['D'].width = 30  # Qualification
-        worksheet.column_dimensions['E'].width = 15  # Nationality
-        worksheet.column_dimensions['F'].width = 10  # Sex
+        col_widths = {
+            'A': 8,   # S/N
+            'B': 25,  # NAME
+            'C': 20,  # POSITION CODE
+            'D': 10,  # GENDER
+            'E': 10,  # INT/EXT
+            'F': 15,  # DOB
+            'G': 8,   # AGE
+            'H': 15,  # NATIONALITY
+            'I': 18,  # EXP START
+            'J': 18,  # EXPERIENCE
+            'K': 50,  # QUALIFICATIONS
+        }
+        for col, width in col_widths.items():
+            worksheet.column_dimensions[col].width = width
     
     def create_template(self, output_path: str):
         """Create a template Excel file with headers."""
         wb = Workbook()
         ws = wb.active
-        ws.title = "Applications"
+        ws.title = self.sheet_name
         self._write_header(ws)
         wb.save(output_path)
         logger.info(f"Created template Excel file: {output_path}")
