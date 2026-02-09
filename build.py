@@ -22,6 +22,9 @@ def build_executable():
         print("\nError: PyInstaller not installed")
         print("Install with: pip install pyinstaller")
         return False
+
+    # Force clean old build artifacts to avoid caching issues
+    clean_build_files()
     
     # Build command
     cmd = [
@@ -41,10 +44,12 @@ def build_executable():
         "--hidden-import", "pdfplumber",
         "--hidden-import", "docx",
         "--hidden-import", "pytesseract",
+        "--hidden-import", "PIL",
         "--hidden-import", "PIL.Image",
         "--hidden-import", "PIL.ImageTk",
         "--hidden-import", "ttkthemes",
-        "--collect-submodules", "PIL",
+        "--collect-all", "PIL",
+        "--collect-all", "ttkthemes",
         "main.py"
     ]
     
