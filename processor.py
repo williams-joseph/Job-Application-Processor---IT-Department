@@ -11,6 +11,7 @@ from datetime import datetime
 from scanner import FolderScanner
 from extractor import FieldExtractor
 
+from pathlib import Path
 import json
 import hashlib
 
