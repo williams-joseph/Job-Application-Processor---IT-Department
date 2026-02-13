@@ -181,9 +181,12 @@ class FieldExtractor:
                     # Convert page to image
                     img = page.to_image(resolution=300)
                     pil_img = img.original
-                    # OCR the image
-                    page_text = pytesseract.image_to_string(pil_img)
-                    text += page_text + "\n"
+                    # OCR the image with timeout (requires Tesseract 4.0+)
+                    try:
+                        page_text = pytesseract.image_to_string(pil_img, timeout=60)
+                        text += page_text + "\n"
+                    except RuntimeError as re:
+                         logger.warning(f"OCR timeout/error on page {i+1} of {file_path.name}: {re}")
         except Exception as e:
             logger.error(f"OCR failed for {file_path.name}: {e}")
             
