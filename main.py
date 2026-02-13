@@ -227,12 +227,12 @@ class ApplicationGUI:
         self.history_text = scrolledtext.ScrolledText(history_frame, font=("Consolas", 10), state='disabled', wrap=tk.WORD)
         self.history_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # === Section 5: Statistics ===
-        stats_frame = ttk.LabelFrame(main_frame, text="Statistics", padding="10")
-        stats_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        # === Section 4: Statistics (Removed) ===
+        # User requested removal of statistics section.
+        # Keeping minimal placeholder if needed or just removing frame completely.
+        # Frame was at row 4.
         
-        self.stats_text = tk.StringVar(value="No data processed yet")
-        ttk.Label(stats_frame, textvariable=self.stats_text, justify=tk.LEFT).pack(anchor=tk.W)
+        self.stats_text = tk.StringVar(value="")
     
     def _browse_folder(self):
         """Browse for parent folder."""
@@ -614,7 +614,7 @@ class ApplicationGUI:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        self.stats_text.set("No data processed yet")
+        self.stats_text.set("")
         self.progress_var.set("Ready to process")
         self.progress_bar['value'] = 0
     

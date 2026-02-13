@@ -416,10 +416,6 @@ class FieldExtractor:
                     else:
                         end_dt = self._parse_month_year(entry['end'])
                     
-                    if start_dt:
-                        start_years.append(start_dt.year)
-                        if end_dt:
-                            months = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
                             if months > 0: total_months += months
                 except:
                     continue
@@ -429,7 +425,14 @@ class FieldExtractor:
                 confidence['EXP START (YEAR)'] = 1.0
             
             if total_months > 0:
-                fields['EXPERIENCE(Years)'] = round(total_months / 12, 1)
+                years = total_months / 12
+                # Rounding logic: .7 and above rounds up
+                decimal_part = years - int(years)
+                if decimal_part >= 0.7:
+                    fields['EXPERIENCE(Years)'] = int(years) + 1
+                else:
+                    fields['EXPERIENCE(Years)'] = round(years, 1)
+                
                 confidence['EXPERIENCE(Years)'] = 1.0
 
         # 2. Fallbacks and normalization
@@ -482,7 +485,7 @@ class FieldExtractor:
         noise_keywords = [
             "PR", "S/N", "N/A", "NONE", "NO", "NULL", "UNDEFINED", "EMPTY", "SPECIFY", 
             "CLICK HERE", "AUTRENOMS", "FIRST NAME", "NOM DE FAMILLE", "FAMILY NAME",
-            "SURNAME", "NAME:", "PRÉNOMS", "NOM", "AUTRE NOM"
+            "SURNAME", "NAME:", "PRÉNOMS", "NOM", "AUTRE NOM", "NACIONALIDADE", "NATIONALITY", "NATIONALITE"
         ]
         for k in fields:
             val_str = str(fields[k]).strip().upper()
