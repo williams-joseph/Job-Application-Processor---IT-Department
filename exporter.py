@@ -53,13 +53,18 @@ class ExcelExporter:
             logger.info(f"Created new Excel file: {excel_path}")
 
         # Create a mapping of Existing Names to Row Numbers
+        # And find the true last row with data to avoid gaps
         name_map = {}
+        last_data_row = 1
+        
         for row_idx in range(2, ws.max_row + 1):
             cell_val = ws.cell(row=row_idx, column=2).value
             if cell_val:
                 # Normalize name for comparison
                 name_key = str(cell_val).strip().upper()
                 name_map[name_key] = row_idx
+                if row_idx > last_data_row:
+                    last_data_row = row_idx
         
         rows_updated = 0
         rows_appended = 0
@@ -77,8 +82,9 @@ class ExcelExporter:
                 row_num = name_map[applicant_name]
                 rows_updated += 1
             else:
-                # Append new row
-                row_num = ws.max_row + 1
+                # Append new row after the last real data row
+                row_num = last_data_row + 1
+                last_data_row += 1 # Increment for the next append
                 rows_appended += 1
                 # Write S/N and Name for new rows
                 ws.cell(row=row_num, column=1).value = row_num - 1
