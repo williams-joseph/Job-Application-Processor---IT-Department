@@ -58,15 +58,15 @@ class FolderScanner:
                 'error': None,
             }
                 
-                # Try to find application form
-                form_path = self.find_application_form(str(item))
-                if form_path:
-                    applicant_info['application_form'] = form_path
-                else:
-                    applicant_info['status'] = 'no_form'
-                    applicant_info['error'] = 'Application form not found'
-                
-                applicants.append(applicant_info)
+            # Try to find application form
+            form_path = self.find_application_form(str(item))
+            if form_path:
+                applicant_info['application_form'] = form_path
+            else:
+                applicant_info['status'] = 'no_form'
+                applicant_info['error'] = 'Application form not found'
+            
+            applicants.append(applicant_info)
         
         logger.info(f"Found {len(applicants)} applicant folders")
         return applicants
