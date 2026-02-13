@@ -1,0 +1,22 @@
+[2026-02-13 16:12:50] Processed: /home/williams-joseph/Downloads/Research Officer
+ - Total: 100, Success: 99, Fail: 1
+ - Time: 223.2s, Rate: 0.45 apps/s
+ - Errors encountered for:
+   * Abdul Malik Bello
+   * Abubakar Bello Jajere
+   * Adeola Akinyemi
+   * Adjovi Baudouin
+   * Ahmad Sulaiman
+   * ... and 78 more
+--------------------------------------------------
+[2026-02-13 16:31:36] Processed: /home/williams-joseph/Downloads/Research Officer
+ - Total: 100, Success: 99, Fail: 1
+ - Time: 3.0s, Rate: 33.2 apps/s
+ - Errors encountered for:
+   * Abdul Malik Bello
+   * Abubakar Bello Jajere
+   * Adeola Akinyemi
+   * Adjovi Baudouin
+   * Ahmad Sulaiman
+   * ... and 78 more
+--------------------------------------------------
