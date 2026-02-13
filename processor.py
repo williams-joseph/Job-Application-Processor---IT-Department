@@ -200,7 +200,11 @@ class ApplicationProcessor:
         """
         # Check cache first
         if applicant['folder_path'] in self.cache:
-            return self.cache[applicant['folder_path']]
+            res = self.cache[applicant['folder_path']]
+            # Force name inheritance from current folder name, even for cached results
+            if 'fields' in res:
+                res['fields']['NAME'] = applicant['applicant_name'].upper()
+            return res
 
         result = {
             'applicant_name': applicant['applicant_name'],

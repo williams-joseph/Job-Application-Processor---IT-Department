@@ -107,7 +107,7 @@ class ApplicationGUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(2, weight=1)
+        main_frame.rowconfigure(3, weight=1) # Give expansion weight to the Notebook (Row 3)
         
         # === Section 1: File Selection ===
         selection_frame = ttk.LabelFrame(main_frame, text="File Selection", padding="10")

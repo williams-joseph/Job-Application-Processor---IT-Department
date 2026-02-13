@@ -467,7 +467,11 @@ class FieldExtractor:
                 else: fields['GENDER'] = gv[:1]
 
         # Final cleanup: Replace any noise or empty placeholders with empty strings
-        noise_keywords = ["PR", "S/N", "N/A", "NONE", "NO", "NULL", "UNDEFINED", "EMPTY", "SPECIFY", "CLICK HERE"]
+        noise_keywords = [
+            "PR", "S/N", "N/A", "NONE", "NO", "NULL", "UNDEFINED", "EMPTY", "SPECIFY", 
+            "CLICK HERE", "AUTRENOMS", "FIRST NAME", "NOM DE FAMILLE", "FAMILY NAME",
+            "SURNAME", "NAME:", "PRÉNOMS", "NOM", "AUTRE NOM"
+        ]
         for k in fields:
             val_str = str(fields[k]).strip().upper()
             if val_str in noise_keywords or len(val_str) == 0:
