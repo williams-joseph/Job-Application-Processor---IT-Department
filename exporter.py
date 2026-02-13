@@ -33,8 +33,7 @@ class ExcelExporter:
     
     def append_to_excel(self, excel_path: str, data_rows: List[Dict]) -> Dict:
         """
-        Update existing rows or append new ones in the Excel file.
-        Inherits Position Code and Int/Ext from the existing data in the sheet.
+        Update existing rows or append new ones in the Excel file based on Applicant Name.
         """
         excel_path = Path(excel_path)
         
@@ -52,94 +51,83 @@ class ExcelExporter:
             ws.title = self.sheet_name
             self._write_header(ws)
             logger.info(f"Created new Excel file: {excel_path}")
-        
-        # Capture "Master" Position Code and Int/Ext from the first data row (Row 2)
-        # This allows us to maintain consistency for this specific position/sheet
-        master_pos_code = None
-        master_int_ext = None
-        
-        if ws.max_row >= 2:
-            # Column C (3) is POSITION CODE, Column E (5) is INT/EXT
-            master_pos_code = ws.cell(row=2, column=3).value
-            master_int_ext = ws.cell(row=2, column=5).value
-            logger.info(f"Inheriting Position Code: '{master_pos_code}' and Status: '{master_int_ext}' from sheet.")
 
-        # Create a mapping of Names to Row Numbers for fast lookup
+        # Create a mapping of Existing Names to Row Numbers
         name_map = {}
-        empty_rows = [] # Rows with position code but no name
         for row_idx in range(2, ws.max_row + 1):
-            name_val = ws.cell(row=row_idx, column=2).value # NAME is Column B
-            if name_val:
-                name_map[str(name_val).strip().lower()] = row_idx
-            else:
-                pos_val = ws.cell(row=row_idx, column=3).value # POS CODE is Column C
-                if pos_val:
-                    empty_rows.append(row_idx)
+            cell_val = ws.cell(row=row_idx, column=2).value
+            if cell_val:
+                # Normalize name for comparison
+                name_key = str(cell_val).strip().upper()
+                name_map[name_key] = row_idx
         
         rows_updated = 0
         rows_appended = 0
         
         for data in data_rows:
             fields = data.get('fields', {})
-            applicant_name = str(data.get('applicant_name', fields.get('NAME', ''))).strip().lower()
+            # Get the name we are processing
+            applicant_name = fields.get('NAME', '').strip().upper()
             
+            if not applicant_name:
+                continue
+
             if applicant_name in name_map:
+                # Update existing row
                 row_num = name_map[applicant_name]
                 rows_updated += 1
-            elif empty_rows:
-                # Reuse the first available empty row that has a position code
-                row_num = empty_rows.pop(0)
-                # Set Name
-                ws.cell(row=row_num, column=2).value = fields.get('NAME', '').upper()
-                rows_updated += 1
             else:
+                # Append new row
                 row_num = ws.max_row + 1
-                ws.cell(row=row_num, column=1).value = row_num - 1 # S/N
-                # Set Name if appending
-                ws.cell(row=row_num, column=2).value = fields.get('NAME', '').upper()
                 rows_appended += 1
+                # Write S/N and Name for new rows
+                ws.cell(row=row_num, column=1).value = row_num - 1
+                ws.cell(row=row_num, column=2).value = applicant_name
+
+            # Write/Update Data Fields
+            # Col 3: Position Code
+            if fields.get('POSITION CODE'):
+                 ws.cell(row=row_num, column=3).value = fields.get('POSITION CODE')
             
-            # 1. POSITION CODE (C) - Always use master value if found in sheet
-            if master_pos_code:
-                ws.cell(row=row_num, column=3).value = master_pos_code
-            elif fields.get('POSITION CODE'):
-                ws.cell(row=row_num, column=3).value = fields.get('POSITION CODE')
-                
-            # 2. GENDER (D)
+            # Col 4: Gender
             ws.cell(row=row_num, column=4).value = fields.get('GENDER', '')
             
-            # 3. INT/EXT (E) - Always use master value if found in sheet
-            if master_int_ext:
-                ws.cell(row=row_num, column=5).value = master_int_ext
-            elif fields.get('INT/EXT'):
+            # Col 5: Int/Ext
+            if fields.get('INT/EXT'):
                 ws.cell(row=row_num, column=5).value = fields.get('INT/EXT')
 
-            # 4. DOB (F)
+            # Col 6: DOB
             ws.cell(row=row_num, column=6).value = fields.get('DOB', '')
-            # 5. AGE (G)
+            
+            # Col 7: Age
             ws.cell(row=row_num, column=7).value = fields.get('AGE', '')
-            # 6. NATIONALITY (H)
+            
+            # Col 8: Nationality
             ws.cell(row=row_num, column=8).value = fields.get('NATIONALITY', '')
-            # 7. EXP START (I)
+            
+            # Col 9: Exp Start
             ws.cell(row=row_num, column=9).value = fields.get('EXP START (YEAR)', '')
-            # 8. EXPERIENCE (J)
+            
+            # Col 10: Experience
             ws.cell(row=row_num, column=10).value = fields.get('EXPERIENCE(Years)', '')
             
-            # 9. QUALIFICATIONS (K)
+            # Col 11: Qualifications
             qual_cell = ws.cell(row=row_num, column=11)
             qual_cell.value = fields.get('QUALIFICATIONS', '')
             qual_cell.alignment = Alignment(wrap_text=True, vertical="top")
         
         # Save workbook
-        wb.save(excel_path)
-        logger.info(f"Sync complete. Updated {rows_updated} rows and appended {rows_appended} rows")
-        
-        return {
-            'rows_added': rows_updated + rows_appended,
-            'rows_updated': rows_updated,
-            'rows_appended': rows_appended,
-            'file_path': str(excel_path),
-        }
+        try:
+            wb.save(excel_path)
+            logger.info(f"Sync complete. Updated {rows_updated} rows and appended {rows_appended} rows")
+            return {
+                'rows_added': rows_updated + rows_appended,
+                'rows_updated': rows_updated,
+                'rows_appended': rows_appended,
+                'file_path': str(excel_path),
+            }
+        except PermissionError:
+             raise PermissionError("Could not save Excel file. Is it open in another program?")
     
     def _write_header(self, worksheet):
         """Write header row with formatting."""
