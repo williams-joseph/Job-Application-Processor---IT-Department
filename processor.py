@@ -124,20 +124,29 @@ class ApplicationProcessor:
                     results.append(result)
                     
                     self.total_processed += 1
+                    logger.info(f"Finished {self.total_processed}/{total_applicants}: {applicant['applicant_name']}")
                     
-                    if result['extraction_status'] == 'success':
+                    # Count as success only if no major errors
+                    if result['extraction_status'] != 'error':
                         self.successful += 1
                     else:
                         self.failed += 1
-                        self.errors.append({
-                            'applicant': applicant['applicant_name'],
-                            'error': result.get('error_message', 'Unknown error'),
-                        })
                     
-                    # Update cache if successful
-                    if result['extraction_status'] == 'success':
+                    # Log ANY errors (missing form, failed fields)
+                    if result.get('errors') or result.get('error_message'):
+                        err_list = result.get('errors', [])
+                        if result.get('error_message') and result.get('error_message') not in err_list:
+                            err_list.insert(0, result['error_message'])
+                        
+                        if err_list:
+                            self.errors.append({
+                                'applicant': applicant['applicant_name'],
+                                'error': err_list
+                            })
+                    
+                    # Update cache if processed successfully
+                    if result['extraction_status'] in ['success', 'no_form']:
                         self.cache[applicant['folder_path']] = result
-                        # Save cache periodically (e.g., every 10 updates) to avoid too much I/O
                         if self.total_processed % 10 == 0:
                             self._save_cache()
                     
@@ -164,6 +173,10 @@ class ApplicationProcessor:
         
         elapsed_time = time.time() - start_time
         logger.info(f"Batch processing complete in {elapsed_time:.1f}s")
+        
+        # Sort final results and errors alphabetically by applicant name
+        results.sort(key=lambda x: x['applicant_name'].lower())
+        self.errors.sort(key=lambda x: x['applicant'].lower())
         
         # Final cache save
         self._save_cache()
@@ -196,24 +209,24 @@ class ApplicationProcessor:
             'error_message': None,
             'fields': {},
         }
+        logger.info(f"Processing applicant: {applicant['applicant_name']}")
         
         # Check if form exists
         if not applicant['application_form']:
-            # No form found - include just the folder name
-            result['extraction_status'] = 'no_form'
-            result['error_message'] = 'Application form not found in folder'
-            result['fields'] = {
-                'NAME': applicant['applicant_name'],  # Use folder name
-                'POSITION CODE': self.extractor.default_position_code,
-                'GENDER': '',
-                'INT/EXT': self.extractor.default_int_ext,
-                'DOB': '',
-                'AGE': '',
-                'NATIONALITY': '',
-                'EXP START (YEAR)': '',
-                'EXPERIENCE(Years)': '',
-                'QUALIFICATIONS': '',
-            }
+            msg = "Application form not found in folder. Manually extract information from CV if available."
+            result.update({
+                'extraction_status': 'no_form',
+                'error_message': msg,
+                'errors': [msg],
+                'fields': {
+                    'NAME': applicant['applicant_name'],
+                    'POSITION CODE': self.extractor.default_position_code,
+                    'GENDER': '', 'INT/EXT': self.extractor.default_int_ext,
+                    'DOB': '', 'AGE': '', 'NATIONALITY': '',
+                    'EXP START (YEAR)': '', 'EXPERIENCE(Years)': '',
+                    'QUALIFICATIONS': '',
+                }
+            })
             return result
         
         try:
@@ -222,29 +235,23 @@ class ApplicationProcessor:
             
             result['extraction_status'] = extraction['extraction_status']
             result['error_message'] = extraction['error_message']
+            result['errors'] = extraction.get('errors', [])
             result['fields'] = extraction['fields']
             result['file_name'] = extraction['file_name']
             
-            # If name is empty but we have folder name, use it
-            if not result['fields'].get('NAME'):
-                result['fields']['NAME'] = applicant['applicant_name']
+            # ALWAYS inherit name from folder as per user request
+            result['fields']['NAME'] = applicant['applicant_name'].upper()
             
         except Exception as e:
             logger.error(f"Error extracting from {applicant['application_form']}: {e}")
             result['extraction_status'] = 'error'
-            result['error_message'] = str(e)
-            # Even on error, include the folder name
+            result['errors'] = [str(e)]
             result['fields'] = {
                 'NAME': applicant['applicant_name'],
                 'POSITION CODE': self.extractor.default_position_code,
-                'GENDER': '',
-                'INT/EXT': self.extractor.default_int_ext,
-                'DOB': '',
-                'AGE': '',
-                'NATIONALITY': '',
-                'EXP START (YEAR)': '',
-                'EXPERIENCE(Years)': '',
-                'QUALIFICATIONS': '',
+                'GENDER': '', 'INT/EXT': self.extractor.default_int_ext,
+                'DOB': '', 'AGE': '', 'NATIONALITY': '',
+                'EXP START (YEAR)': '', 'EXPERIENCE(Years)': '', 'QUALIFICATIONS': '',
             }
         
         return result
@@ -271,6 +278,11 @@ class ApplicationProcessor:
             
             for idx, error in enumerate(self.errors, start=1):
                 f.write(f"{idx}. {error['applicant']}\n")
-                f.write(f"   Error: {error['error']}\n\n")
+                if isinstance(error['error'], list):
+                    for e in error['error']:
+                        f.write(f"   - {e}\n")
+                else:
+                    f.write(f"   - {error['error']}\n")
+                f.write("\n")
         
         logger.info(f"Error log exported to {output_path}")

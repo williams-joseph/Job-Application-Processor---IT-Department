@@ -95,6 +95,9 @@ class ApplicationGUI:
         # Processing state
         self.is_processing = False
         
+        # Load existing history
+        self._load_history()
+        
     def _setup_ui(self):
         """Setup the user interface."""
         # Main container
@@ -136,7 +139,6 @@ class ApplicationGUI:
         self.process_btn.pack(side=tk.LEFT, padx=5)
         
         ttk.Button(control_frame, text="Export to Excel", command=self._export_excel).pack(side=tk.LEFT, padx=5)
-        ttk.Button(control_frame, text="Export Error Log", command=self._export_errors).pack(side=tk.LEFT, padx=5)
         ttk.Button(control_frame, text="Clear Results", command=self._clear_results).pack(side=tk.LEFT, padx=5)
         
         # Filter controls
@@ -163,13 +165,17 @@ class ApplicationGUI:
         self.progress_bar = ttk.Progressbar(progress_frame, mode='determinate', maximum=100)
         self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
         
-        # === Section 4: Results Table ===
-        table_frame = ttk.LabelFrame(main_frame, text="Extracted Data", padding="10")
-        table_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        # === Section 3: Notebook (Tabs) ===
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        
+        # Tab 1: Extracted Data
+        table_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(table_frame, text=" Extracted Data ")
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
         
-        # Create treeview with scrollbars
+        # Create treeview with scrollbars for results
         tree_scroll_y = ttk.Scrollbar(table_frame, orient=tk.VERTICAL)
         tree_scroll_x = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
         
@@ -182,40 +188,44 @@ class ApplicationGUI:
             columns=columns,
             show='headings',
             yscrollcommand=tree_scroll_y.set,
-            xscrollcommand=tree_scroll_x.set,
-            displaycolumns=columns # We can use this to hide columns if needed
+            xscrollcommand=tree_scroll_x.set
         )
         
         tree_scroll_y.config(command=self.tree.yview)
         tree_scroll_x.config(command=self.tree.xview)
         
-        # Configure columns
         column_widths = {
-            'S/N': 40,
-            'NAME': 150,
-            'POSITION CODE': 100,
-            'GENDER': 60,
-            'INT/EXT': 60,
-            'DOB': 80,
-            'AGE': 50,
-            'NATIONALITY': 100,
-            'EXP START': 80,
-            'EXPERIENCE': 80,
-            'QUALIFICATIONS': 200,
-            'Status': 100,
+            'S/N': 40, 'NAME': 180, 'POSITION CODE': 100, 'GENDER': 60,
+            'INT/EXT': 60, 'DOB': 100, 'AGE': 50, 'NATIONALITY': 100,
+            'EXP START': 80, 'EXPERIENCE': 80, 'QUALIFICATIONS': 250, 'Status': 100,
         }
         
         for col in columns:
             self.tree.heading(col, text=col, command=lambda c=col: self._sort_by_column(c))
             self.tree.column(col, width=column_widths.get(col, 100), minwidth=50)
         
-        # Grid layout
         self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         tree_scroll_y.grid(row=0, column=1, sticky=(tk.N, tk.S))
         tree_scroll_x.grid(row=1, column=0, sticky=(tk.W, tk.E))
-        
-        # Double-click to edit
         self.tree.bind("<Double-1>", self._edit_cell)
+
+        # Tab 2: Errors & Warnings
+        error_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(error_frame, text=" Errors & Warnings ")
+        error_frame.columnconfigure(0, weight=1)
+        error_frame.rowconfigure(0, weight=1)
+        
+        self.error_text = scrolledtext.ScrolledText(error_frame, font=("Consolas", 10), state='disabled', wrap=tk.WORD)
+        self.error_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        # Tab 3: Processing History
+        history_frame = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(history_frame, text=" Processing History ")
+        history_frame.columnconfigure(0, weight=1)
+        history_frame.rowconfigure(0, weight=1)
+        
+        self.history_text = scrolledtext.ScrolledText(history_frame, font=("Consolas", 10), state='disabled', wrap=tk.WORD)
+        self.history_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # === Section 5: Statistics ===
         stats_frame = ttk.LabelFrame(main_frame, text="Statistics", padding="10")
@@ -319,6 +329,12 @@ class ApplicationGUI:
         
         # Update table
         self._populate_table(self.results)
+        
+        # Update Errors tab
+        self._update_errors_tab(result.get('errors', []))
+        
+        # Update History
+        self._add_to_history(result)
         
         # Update statistics
         stats = result.get('stats', {})
@@ -513,24 +529,77 @@ class ApplicationGUI:
             logger.error(f"Export error: {e}")
             messagebox.showerror("Export Error", f"Failed to export:\n\n{str(e)}")
     
-    def _export_errors(self):
-        """Export error log."""
-        if not self.processor.errors:
-            messagebox.showinfo("No Errors", "No errors to export")
-            return
+    def _update_errors_tab(self, errors: List[Dict]):
+        """Update the errors tab with current batch errors."""
+        self.error_text.config(state='normal')
+        self.error_text.delete(1.0, tk.END)
         
-        file = filedialog.asksaveasfilename(
-            title="Save Error Log",
-            defaultextension=".txt",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        if not errors:
+            self.error_text.insert(tk.END, "No extraction errors or warnings in this batch.\n")
+        else:
+            self.error_text.insert(tk.END, f"Found {len(errors)} issues in this batch:\n\n")
+            for idx, err in enumerate(errors, start=1):
+                self.error_text.insert(tk.END, f"{idx}. {err['applicant']}\n")
+                msgs = err.get('error', [])
+                if isinstance(msgs, list):
+                    for m in msgs:
+                        self.error_text.insert(tk.END, f"   - {m}\n")
+                else:
+                    self.error_text.insert(tk.END, f"   - {msgs}\n")
+                self.error_text.insert(tk.END, "\n")
+        
+        self.error_text.config(state='disabled')
+        if errors:
+            # Switch to errors tab if there are errors
+            self.notebook.select(1)
+
+    def _add_to_history(self, result: Dict):
+        """Append processing result to history log."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        stats = result.get('stats', {})
+        errors = result.get('errors', [])
+        
+        history_entry = (
+            f"[{timestamp}] Processed: {self.parent_folder}\n"
+            f" - Total: {stats.get('total_processed', 0)}, Success: {stats.get('successful', 0)}, Fail: {stats.get('failed', 0)}\n"
+            f" - Time: {stats.get('elapsed_time', 0)}s, Rate: {stats.get('rate', 0)} apps/s\n"
         )
         
-        if file:
+        if errors:
+            history_entry += " - Errors encountered for:\n"
+            for err in errors[:5]: # Show first 5 to keep it concise
+                history_entry += f"   * {err['applicant']}\n"
+            if len(errors) > 5:
+                history_entry += f"   * ... and {len(errors)-5} more\n"
+        
+        history_entry += f"{'-'*50}\n"
+        
+        self.history_text.config(state='normal')
+        self.history_text.insert(1.0, history_entry) # Insert at top
+        self.history_text.config(state='disabled')
+        
+        # Persist history to file
+        try:
+            with open("processing_history.txt", "a", encoding='utf-8') as f:
+                f.write(history_entry)
+        except:
+            pass
+
+    def _load_history(self):
+        """Load history from file if it exists."""
+        if Path("processing_history.txt").exists():
             try:
-                self.processor.export_error_log(file)
-                messagebox.showinfo("Export Complete", f"Error log saved to:\n{file}")
-            except Exception as e:
-                messagebox.showerror("Export Error", f"Failed to save error log:\n\n{str(e)}")
+                with open("processing_history.txt", "r", encoding='utf-8') as f:
+                    content = f.read()
+                    self.history_text.config(state='normal')
+                    self.history_text.insert(tk.END, content)
+                    self.history_text.config(state='disabled')
+            except:
+                pass
+
+    def _export_errors(self):
+        """No longer used - errors displayed in tab."""
+        pass
     
     def _clear_results(self):
         """Clear all results."""

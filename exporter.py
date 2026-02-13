@@ -66,10 +66,15 @@ class ExcelExporter:
 
         # Create a mapping of Names to Row Numbers for fast lookup
         name_map = {}
+        empty_rows = [] # Rows with position code but no name
         for row_idx in range(2, ws.max_row + 1):
             name_val = ws.cell(row=row_idx, column=2).value # NAME is Column B
             if name_val:
                 name_map[str(name_val).strip().lower()] = row_idx
+            else:
+                pos_val = ws.cell(row=row_idx, column=3).value # POS CODE is Column C
+                if pos_val:
+                    empty_rows.append(row_idx)
         
         rows_updated = 0
         rows_appended = 0
@@ -80,6 +85,12 @@ class ExcelExporter:
             
             if applicant_name in name_map:
                 row_num = name_map[applicant_name]
+                rows_updated += 1
+            elif empty_rows:
+                # Reuse the first available empty row that has a position code
+                row_num = empty_rows.pop(0)
+                # Set Name
+                ws.cell(row=row_num, column=2).value = fields.get('NAME', '').upper()
                 rows_updated += 1
             else:
                 row_num = ws.max_row + 1

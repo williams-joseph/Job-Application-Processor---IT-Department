@@ -45,16 +45,18 @@ class FolderScanner:
         
         applicants = []
         
-        # Get all subdirectories
-        for item in parent_path.iterdir():
-            if item.is_dir():
-                applicant_info = {
-                    'folder_path': str(item),
-                    'applicant_name': item.name,
-                    'application_form': None,
-                    'status': 'pending',
-                    'error': None,
-                }
+        # Get all subdirectories and sort alphabetically by name
+        folders = [item for item in parent_path.iterdir() if item.is_dir()]
+        folders.sort(key=lambda x: x.name.lower())
+        
+        for item in folders:
+            applicant_info = {
+                'folder_path': str(item),
+                'applicant_name': item.name,
+                'application_form': None,
+                'status': 'pending',
+                'error': None,
+            }
                 
                 # Try to find application form
                 form_path = self.find_application_form(str(item))
