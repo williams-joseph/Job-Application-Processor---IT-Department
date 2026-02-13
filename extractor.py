@@ -431,7 +431,7 @@ class FieldExtractor:
                 if decimal_part >= 0.7:
                     fields['EXPERIENCE(Years)'] = int(years) + 1
                 else:
-                    fields['EXPERIENCE(Years)'] = round(years, 1)
+                    fields['EXPERIENCE(Years)'] = int(years)
                 
                 confidence['EXPERIENCE(Years)'] = 1.0
 
