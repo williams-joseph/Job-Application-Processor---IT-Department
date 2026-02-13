@@ -416,6 +416,10 @@ class FieldExtractor:
                     else:
                         end_dt = self._parse_month_year(entry['end'])
                     
+                    if start_dt:
+                        start_years.append(start_dt.year)
+                        if end_dt:
+                            months = (end_dt.year - start_dt.year) * 12 + (end_dt.month - start_dt.month)
                             if months > 0: total_months += months
                 except:
                     continue
