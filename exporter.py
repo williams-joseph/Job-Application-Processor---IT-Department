@@ -122,6 +122,13 @@ class ExcelExporter:
             qual_cell.value = fields.get('QUALIFICATIONS', '')
             qual_cell.alignment = Alignment(wrap_text=True, vertical="top")
         
+        # Cleanup: Remove any extra columns beyond K (11)
+        # This fixes the issue of "seeing L to CN" ghost columns
+        if ws.max_column > 11:
+            cols_to_delete = ws.max_column - 11
+            ws.delete_cols(12, cols_to_delete)
+            logger.info(f"Cleaned up {cols_to_delete} extra columns")
+
         # Save workbook
         try:
             wb.save(excel_path)
