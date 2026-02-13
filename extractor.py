@@ -499,6 +499,16 @@ class FieldExtractor:
             if val_str.startswith("S/N "):
                 fields[k] = ""
             
+            # Specific aggressively clean Nationality field
+            if k == 'NATIONALITY':
+                 # Remove label if captured as value
+                 v = val_str
+                 for label in ['NACIONALIDADE', 'NATIONALITY', 'NATIONALITE']:
+                     v = v.replace(label, '').strip()
+                 # Remove common punctuation
+                 v = v.strip(':').strip('.').strip()
+                 fields[k] = v
+            
         # Error logging for any missing fields
         field_labels = {
             'NAME': 'Applicant Name',
