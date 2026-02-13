@@ -5,8 +5,9 @@ Handles PDF, DOCX, and OCR-based text extraction.
 
 import os
 import re
+import logging
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 
 try:
@@ -31,6 +32,10 @@ from config import TESSERACT_PATH
 
 if pytesseract and os.path.exists(TESSERACT_PATH):
     pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class FieldExtractor:
@@ -370,14 +375,18 @@ class FieldExtractor:
             fields['NATIONALITY'] = p_info.get('nationality', '').strip()
             if fields['NATIONALITY']: confidence['NATIONALITY'] = 1.0
             
-            # Qualifications - Deduplicate
-            all_quals_set = set()
+            # Qualifications - Collect All
+            raw_quals = []
             for edu in structured.get('education', []):
-                q = f"{edu['level']}, {edu['field']}, {edu['inst']} - {edu['year']}".strip()
-                if q and len(q) > 10: all_quals_set.add(q)
+                raw_quals.append(f"{edu['level']}, {edu['field']}, {edu['inst']} - {edu['year']}")
             for cert in structured.get('qualifications', []):
-                q = f"{cert['title']}, {cert['centre']} - {cert['year']}".strip()
-                if q and len(q) > 10: all_quals_set.add(q)
+                raw_quals.append(f"{cert['title']}, {cert['centre']} - {cert['year']}")
+            
+            # Deduplicate
+            all_quals_set = set()
+            for q in raw_quals:
+                clean_q = q.strip()
+                if clean_q and len(clean_q) > 10: all_quals_set.add(clean_q)
             
             all_quals = list(all_quals_set)
             
@@ -585,21 +594,62 @@ class FieldExtractor:
         return None
     
     def _normalize_date(self, date_str: str) -> Optional[str]:
-        """Normalize date to standard format (YYYY-MM-DD)."""
+        """Normalize date to standard format (YYYY-MM-DD), handling multilingual inputs."""
+        if not date_str: return None
+        
+        ds = date_str.lower().strip()
+        
+        # 0. Clean common punctuations and ordinals
+        ds = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', ds) # 20th -> 20
+        ds = ds.replace(',', ' ').replace('.', ' ').replace('/', ' ').replace('-', ' ').replace(' de ', ' ')
+        ds = re.sub(r'\s+', ' ', ds).strip()
+
+        # 1. Map months (English, French, Portuguese)
+        months = {
+            'jan': 1, 'fev': 2, 'mar': 3, 'apr': 4, 'avr': 4, 'abr': 4, 'may': 5, 'mai': 5, 'jun': 6,
+            'jul': 7, 'aug': 8, 'aou': 8, 'ago': 8, 'sep': 9, 'set': 9, 'oct': 10, 'out': 10, 
+            'nov': 11, 'dec': 12, 'dez': 12, 
+            'january':1, 'february':2, 'march':3, 'april':4, 'may':5, 'june':6, 'july':7, 'august':8, 
+            'september':9, 'october':10, 'november':11, 'december':12,
+            'janvier':1, 'fevrier':2, 'mars':3, 'avril':4, 'mai':5, 'juin':6, 'juillet':7, 'aout':8, 
+            'septembre':9, 'octobre':10, 'novembre':11, 'decembre':12,
+            'janeiro':1, 'fevereiro':2, 'marco':3, 'abril':4, 'maio':5, 'junho':6, 'julho':7, 'agosto':8, 
+            'setembro':9, 'outubro':10, 'novembro':11, 'dezembro':12
+        }
+        
+        # Try to find text month
+        for name, num in months.items():
+            if name in ds:
+                # Replace name with number
+                ds = ds.replace(name, str(num))
+                break
+        
+        # Standard formats
         date_formats = [
-            '%d-%m-%Y', '%d/%m/%Y', '%d.%m.%Y',
-            '%d-%m-%y', '%d/%m/%y', '%d.%m.%y',
-            '%d %B %Y', '%d %b %Y',
-            '%Y-%m-%d', '%Y/%m/%d',
+            '%d %m %Y', '%Y %m %d', '%m %d %Y', 
+            '%d %B %Y', '%d %b %Y' # fallbacks
         ]
         
         for fmt in date_formats:
             try:
-                dt = datetime.strptime(date_str.strip(), fmt)
+                dt = datetime.strptime(ds, fmt)
                 return dt.strftime('%Y-%m-%d')
             except ValueError:
                 continue
         
+        # Last resort: Try parsing component by component
+        parts = ds.split()
+        if len(parts) == 3:
+            try:
+                # Assumption: If year is first (YYYY MM DD), else (DD MM YYYY)
+                p1, p2, p3 = int(parts[0]), int(parts[1]), int(parts[2])
+                if p1 > 1900: # YYYY MM DD
+                   return datetime(p1, p2, p3).strftime('%Y-%m-%d')
+                else: # DD MM YYYY
+                   return datetime(p3, p2, p1).strftime('%Y-%m-%d')
+            except:
+                pass
+
         return None
     
     def validate_fields(self, fields: Dict) -> Dict[str, bool]:

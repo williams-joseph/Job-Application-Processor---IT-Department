@@ -351,6 +351,11 @@ class ApplicationGUI:
         self.progress_var.set("Processing complete!")
         self.progress_bar['value'] = 100
         
+        # Add completion marker to history
+        self.history_text.config(state='normal')
+        self.history_text.insert(1.0, f"[{datetime.now().strftime('%H:%M:%S')}] Batch processing completed successfully.\n\n")
+        self.history_text.config(state='disabled')
+        
         messagebox.showinfo("Complete", f"Processing complete!\n\n{stats_text}")
     
     def _processing_error(self, error_msg: str):
